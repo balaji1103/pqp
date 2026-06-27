@@ -1,1 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#1976d2">
+    <meta name="description" content="Society Staff Attendance Tracker with GPS and Selfie">
+    <title>Attendance Tracker - GPS & Selfie</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect fill='%231976d2' width='192' height='192'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' font-size='100' fill='white' font-weight='bold'>A</text></svg>">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 10px;
+        }
+
+        .container {
+            max-width: 500px;
+            margin: 20px auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            padding: 25px;
+            animation: slideUp 0.5s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        h1 {
+            color: #1976d2;
+            margin-bottom: 10px;
+            text-align: center;
+            font-size: 24px;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            font-size: 12px;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 18px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        input[type="text"],
+        input[type="email"],
+        select,
+        textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus,
+        input[type="email"]:focus,
+        select:focus,
+        textarea:focus {
+            outline: none;
+            border-color: #1976d2;
+            box-shadow: 0 0 0 3px rgba(25, 118, 210, 0.1);
+        }
+
+        .location-box {
+            background: #f5f5f5;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 18px;
+            font-size: 13px;
+        }
+
+        .location-box h3 {
+            color: #1976d2;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .location-status {
+            color: #666;
+            line-height: 1.5;
+        }
+
+        .location-status.success {
+            color: #4caf50;
+            font-weight: 600;
+        }
+
+        .location-status.error {
+            color: #f44336;
+            font-weight: 600;
+        }
+
+        .button-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 18px;
+        }
+
+        button {
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: #1976d2;
+            color: white;
+            grid-column: 1 / -1;
+        }
+
+        .btn-primary:hover {
+            background: #1565c0;
+            box-shadow: 0 4px 12px rgba(25, 118, 210, 0.3);
+        }
+
+        .btn-primary:active {
+            transform: scale(0.98);
+        }
+
+        .btn-secondary {
+            background: #f44336;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #d32f2f;
+        }
+
+        .btn-success {
+            background: #4caf50;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #388e3c;
+        }
+
+        .btn-warning {
+            background: #ff9800;
+            color: white;
+        }
+
+        .btn-warning:hover {
+            background: #f57c00;
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .camera-container {
+            width: 100%;
+            margin-bottom: 18px;
+            background: #f5f5f5;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        video, canvas {
+            width: 100%;
+            display: block;
+            border-radius: 8px;
+        }
+
+        .photo-preview {
+            width: 100%;
+            border-radius: 8px;
+            max-height: 300px;
+            object-fit: cover;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .success-message {
+            background: #e8f5e9;
+            border: 2px solid #4caf50;
+            color: #2e7d32;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        .error-message {
+            background: #ffebee;
+            border: 2px solid #f44336;
+            color: #c62828;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #1976d2;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-top: 4px;
+        }
+
+        .status-badge.pending {
+            background: #fff3e0;
+            color: #e65100;
+        }
+
+        .status-badge.success {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        .status-badge.error {
+            background: #ffebee;
+            color: #c62828;
+        }
+
+        .info-text {
+            font-size: 12px;
+            color: #666;
+            margin-top: 4px;
+        }
+
+        .timestamp {
+            font-size: 12px;
+            color: #999;
+            margin-top: 4px;
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 18px;
+                margin: 10px 5px;
+            }
+
+            h1 {
+                font-size: 20px;
+            }
+
+            .button-group {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📍 Attendance Tracker</h1>
+        <p class="subtitle">GPS & Selfie Verification</p>
+
+        <div id="successMessage" class="success-message hidden"></div>
+        <div id="errorMessage" class="error-message hidden"></div>
+
+        <form id="attendanceForm">
+            <!-- Location Section -->
+            <div class="location-box">
+                <h3>📍 Your Location</h3>
+                <div class="location-status" id="locationStatus">
+                    <span id="locationText">Getting location...</span>
+                    <span id="locationBadge" class="status-badge pending">Fetching</span>
+                </div>
+                <input type="hidden" id="latitude" name="latitude">
+                <input type="hidden" id="longitude" name="longitude">
+                <input type="hidden" id="accuracy" name="accuracy">
+                <p class="info-text">✓ Location will be captured automatically</p>
+            </div>
+
+            <!-- Personal Details -->
+            <div class="form-group">
+                <label for="staffName">Staff Name *</label>
+                <input type="text" id="staffName" name="staffName" placeholder="Enter your full name" required>
+            </div>
+
+            <div class="form-group">
+                <label for="staffId">Staff ID / Employee Number *</label>
+                <input type="text" id="staffId" name="staffId" placeholder="e.g., STF001" required>
+            </div>
+
+            <div class="form-group">
+                <label for="department">Department *</label>
+                <select id="department" name="department" required>
+                    <option value="">Select Department</option>
+                    <option value="Administration">Administration</option>
+                    <option value="Maintenance">Maintenance</option>
+                    <option value="Security">Security</option>
+                    <option value="Cleanliness">Cleanliness</option>
+                    <option value="Management">Management</option>
+                    <option value="Others">Others</option>
+                </select>
+            </div>
+
+            <!-- Camera Section -->
+            <div class="form-group">
+                <label>📸 Selfie Verification *</label>
+                <div class="button-group">
+                    <button type="button" class="btn-warning" id="startCameraBtn">Start Camera</button>
+                    <button type="button" class="btn-success" id="captureSelfieBtn" disabled>Capture Photo</button>
+                </div>
+                <div id="cameraContainer" class="camera-container hidden">
+                    <video id="cameraVideo" playsinline></video>
+                </div>
+                <img id="selfiePreview" class="photo-preview hidden" alt="Selfie Preview">
+                <input type="hidden" id="selfieData" name="selfieData">
+                <p class="info-text" id="cameraStatus">Camera not started</p>
+            </div>
+
+            <!-- Remarks -->
+            <div class="form-group">
+                <label for="remarks">Remarks / Notes (Optional)</label>
+                <textarea id="remarks" name="remarks" placeholder="Any additional notes..." rows="3" maxlength="200"></textarea>
+            </div>
+
+            <!-- Submit Button -->
+            <button type="submit" class="btn-primary" id="submitBtn">✓ Mark Attendance</button>
+
+            <p class="timestamp" id="submissionTime"></p>
+        </form>
+    </div>
+
+    <script>
+        // ===================== CONFIGURATION =====================
+        // Replace with your Google Apps Script Web App URL
+        const WEBHOOK_URL = 'https://script.google.com/macros/d/YOUR_SCRIPT_ID/ussd'; // You'll update this
+        const OFFICE_LAT = 13.0827;  // Change to your office latitude
+        const OFFICE_LNG = 80.2707;  // Change to your office longitude
+        const GEOFENCE_RADIUS = 500; // Meters - staff must be within 500m of office
+
+        // ===================== STATE =====================
+        let currentLocation = null;
+        let selfieDataURL = null;
+        let cameraStream = null;
+
+        // ===================== SERVICE WORKER =====================
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js').catch(err => {
+                console.log('Service Worker registration failed:', err);
+            });
+        }
+
+        // ===================== LOCATION TRACKING =====================
+        function getLocation() {
+            if (!navigator.geolocation) {
+                updateLocationStatus('Geolocation not supported', 'error');
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    currentLocation = {
+                        lat: position.coords.latitude,
+                        lng: position.coords.longitude,
+                        accuracy: Math.round(position.coords.accuracy)
+                    };
+                    
+                    document.getElementById('latitude').value = currentLocation.lat;
+                    document.getElementById('longitude').value = currentLocation.lng;
+                    document.getElementById('accuracy').value = currentLocation.accuracy;
+
+                    // Check geofence
+                    const distance = calculateDistance(
+                        OFFICE_LAT, OFFICE_LNG,
+                        currentLocation.lat, currentLocation.lng
+                    );
+
+                    if (distance <= GEOFENCE_RADIUS) {
+                        updateLocationStatus(
+                            `✓ Location: ${currentLocation.lat.toFixed(4)}, ${currentLocation.lng.toFixed(4)}<br>Accuracy: ±${currentLocation.accuracy}m<br>Distance from office: ${distance.toFixed(0)}m`,
+                            'success'
+                        );
+                    } else {
+                        updateLocationStatus(
+                            `⚠️ Outside office radius!<br>Distance: ${distance.toFixed(0)}m (Max: ${GEOFENCE_RADIUS}m)<br>Please move closer to office`,
+                            'error'
+                        );
+                        document.getElementById('submitBtn').disabled = true;
+                    }
+                },
+                (error) => {
+                    updateLocationStatus(`Error: ${error.message}`, 'error');
+                    console.log(error);
+                },
+                {
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    maximumAge: 0
+                }
+            );
+        }
+
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371000; // Earth radius in meters
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                      Math.sin(dLon/2) * Math.sin(dLon/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c;
+        }
+
+        function updateLocationStatus(message, status) {
+            const statusEl = document.getElementById('locationStatus');
+            const badgeEl = document.getElementById('locationBadge');
+            statusEl.innerHTML = message;
+            
+            badgeEl.className = 'status-badge';
+            if (status === 'success') {
+                badgeEl.classList.add('success');
+                badgeEl.textContent = 'Located';
+            } else if (status === 'error') {
+                badgeEl.classList.add('error');
+                badgeEl.textContent = 'Outside Office';
+            }
+        }
+
+        // ===================== CAMERA FUNCTIONS =====================
+        document.getElementById('startCameraBtn').addEventListener('click', async (e) => {
+            e.preventDefault();
+            try {
+                cameraStream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'user' }
+                });
+                const video = document.getElementById('cameraVideo');
+                video.srcObject = cameraStream;
+                
+                document.getElementById('cameraContainer').classList.remove('hidden');
+                document.getElementById('startCameraBtn').disabled = true;
+                document.getElementById('captureSelfieBtn').disabled = false;
+                document.getElementById('cameraStatus').textContent = '✓ Camera active - Click "Capture Photo"';
+            } catch (err) {
+                showError('Camera access denied: ' + err.message);
+                console.log(err);
+            }
+        });
+
+        document.getElementById('captureSelfieBtn').addEventListener('click', (e) => {
+            e.preventDefault();
+            const video = document.getElementById('cameraVideo');
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            
+            // Flip for selfie
+            ctx.translate(canvas.width, 0);
+            ctx.scale(-1, 1);
+            ctx.drawImage(video, 0, 0);
+            
+            selfieDataURL = canvas.toDataURL('image/jpeg', 0.7);
+            
+            document.getElementById('selfiePreview').src = selfieDataURL;
+            document.getElementById('selfiePreview').classList.remove('hidden');
+            document.getElementById('selfieData').value = selfieDataURL;
+            
+            // Stop camera
+            cameraStream.getTracks().forEach(track => track.stop());
+            document.getElementById('cameraContainer').classList.add('hidden');
+            document.getElementById('startCameraBtn').disabled = false;
+            document.getElementById('captureSelfieBtn').disabled = true;
+            document.getElementById('cameraStatus').textContent = '✓ Photo captured successfully';
+        });
+
+        // ===================== FORM SUBMISSION =====================
+        document.getElementById('attendanceForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            // Validation
+            if (!currentLocation) {
+                showError('Location not available. Please wait for GPS...');
+                return;
+            }
+
+            if (!selfieDataURL) {
+                showError('Please capture a selfie first');
+                return;
+            }
+
+            const staffName = document.getElementById('staffName').value.trim();
+            const staffId = document.getElementById('staffId').value.trim();
+            const department = document.getElementById('department').value;
+            const remarks = document.getElementById('remarks').value.trim();
+
+            if (!staffName || !staffId || !department) {
+                showError('Please fill all required fields');
+                return;
+            }
+
+            // Disable submit button
+            const submitBtn = document.getElementById('submitBtn');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<div class="spinner"></div>';
+
+            try {
+                // Prepare data
+                const attendanceData = {
+                    timestamp: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
+                    staffName: staffName,
+                    staffId: staffId,
+                    department: department,
+                    latitude: currentLocation.lat,
+                    longitude: currentLocation.lng,
+                    accuracy: currentLocation.accuracy,
+                    remarks: remarks,
+                    selfie: selfieDataURL.substring(0, 50000) // Limit size for Google Sheets
+                };
+
+                // Send to Google Sheets
+                const response = await fetch(WEBHOOK_URL, {
+                    method: 'POST',
+                    body: JSON.stringify(attendanceData)
+                });
+
+                if (response.ok) {
+                    showSuccess(`✓ Attendance marked successfully for ${staffName}!`);
+                    // Reset form after 2 seconds
+                    setTimeout(() => {
+                        document.getElementById('attendanceForm').reset();
+                        document.getElementById('selfiePreview').classList.add('hidden');
+                        document.getElementById('selfieData').value = '';
+                        selfieDataURL = null;
+                        getLocation();
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = '✓ Mark Attendance';
+                    }, 2000);
+                } else {
+                    throw new Error('Server error');
+                }
+            } catch (error) {
+                showError('Failed to submit: ' + error.message + '\nMake sure webhook URL is configured');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '✓ Mark Attendance';
+            }
+        });
+
+        // ===================== UTILITY FUNCTIONS =====================
+        function showSuccess(message) {
+            const msgEl = document.getElementById('successMessage');
+            msgEl.innerHTML = message;
+            msgEl.classList.remove('hidden');
+            setTimeout(() => msgEl.classList.add('hidden'), 5000);
+        }
+
+        function showError(message) {
+            const msgEl = document.getElementById('errorMessage');
+            msgEl.innerHTML = message;
+            msgEl.classList.remove('hidden');
+            setTimeout(() => msgEl.classList.add('hidden'), 5000);
+        }
+
+        function updateTime() {
+            const now = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+            document.getElementById('submissionTime').textContent = `Current time: ${now}`;
+        }
+
+        // ===================== INITIALIZATION =====================
+        window.addEventListener('load', () => {
+            getLocation();
+            updateTime();
+            setInterval(updateTime, 1000);
+            
+            // Refresh location every 30 seconds
+            setInterval(getLocation, 30000);
+        });
+    </script>
+</body>
+</html>
