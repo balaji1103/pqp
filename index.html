@@ -362,7 +362,7 @@
                     <button type="button" class="btn-success" id="captureSelfieBtn" disabled>Capture Photo</button>
                 </div>
                 <div id="cameraContainer" class="camera-container hidden">
-                    <video id="cameraVideo" playsinline></video>
+                    <video id="cameraVideo" playsinline webkit-playsinline autoplay muted></video>
                 </div>
                 <img id="selfiePreview" class="photo-preview hidden" alt="Selfie Preview">
                 <input type="hidden" id="selfieData" name="selfieData">
@@ -484,28 +484,69 @@
             try {
                 const video = document.getElementById('cameraVideo');
                 
-                // Request camera with specific constraints
-                cameraStream = await navigator.mediaDevices.getUserMedia({
+                // Mobile and desktop constraints
+                const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+                
+                const constraints = {
                     video: { 
                         facingMode: 'user',
-                        width: { ideal: 1280 },
-                        height: { ideal: 720 }
+                        // Mobile: lower resolution for faster startup
+                        width: isMobile ? { ideal: 640 } : { ideal: 1280 },
+                        height: isMobile ? { ideal: 480 } : { ideal: 720 }
                     },
                     audio: false
-                });
+                };
+                
+                console.log('Device type:', isMobile ? 'Mobile' : 'Desktop');
+                console.log('Requesting camera with constraints:', constraints);
+                
+                try {
+                    cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
+                    console.log('Camera stream obtained:', cameraStream);
+                } catch (constraintError) {
+                    // Fallback: Try without specific width/height constraints
+                    console.log('Constraint error, trying fallback...', constraintError);
+                    cameraStream = await navigator.mediaDevices.getUserMedia({
+                        video: { facingMode: 'user' },
+                        audio: false
+                    });
+                    console.log('Fallback camera stream obtained');
+                }
                 
                 // Attach stream to video element
                 video.srcObject = cameraStream;
+                console.log('Stream attached to video element');
+                
+                // Mobile-specific video setup
+                if (isMobile) {
+                    video.setAttribute('playsinline', 'true');
+                    video.setAttribute('webkit-playsinline', 'true');
+                    video.muted = true;
+                    video.autoplay = true;
+                }
                 
                 // Wait for video to load before showing
                 video.onloadedmetadata = () => {
+                    console.log('Video metadata loaded');
+                    console.log('Video dimensions:', video.videoWidth, 'x', video.videoHeight);
+                    
                     video.play().then(() => {
                         console.log('Camera stream started successfully');
                     }).catch(err => {
                         console.error('Play error:', err);
-                        showError('Could not start camera playback: ' + err.message);
+                        showError('Could not start camera playback: ' + err.message + '\n\nTry: Close other camera apps, reload page, or use Chrome browser');
                     });
                 };
+                
+                // Fallback in case loadedmetadata doesn't fire
+                setTimeout(() => {
+                    if (video.videoWidth === 0) {
+                        console.warn('Video still not loaded, forcing play');
+                        video.play().catch(err => {
+                            console.error('Delayed play error:', err);
+                        });
+                    }
+                }, 1000);
                 
                 // Show camera container
                 document.getElementById('cameraContainer').classList.remove('hidden');
@@ -516,15 +557,28 @@
                 console.log('Camera started, stream ready');
             } catch (err) {
                 console.error('Camera error:', err);
+                console.log('Error name:', err.name);
+                console.log('Error message:', err.message);
+                
+                let errorMsg = '';
+                
                 if (err.name === 'NotAllowedError') {
-                    showError('❌ Camera permission denied. Please allow camera access in browser settings.');
+                    errorMsg = '❌ Camera permission denied.\n\nTo fix:\n1. Go to Settings → Apps → [Your Browser]\n2. Find "Permissions" section\n3. Enable "Camera"\n4. Restart browser and try again';
                 } else if (err.name === 'NotFoundError') {
-                    showError('❌ No camera found on this device.');
+                    errorMsg = '❌ No camera found on this device.\n\nMake sure your phone has a working camera.';
                 } else if (err.name === 'NotReadableError') {
-                    showError('❌ Camera is in use by another app. Please close it and try again.');
+                    errorMsg = '❌ Camera is in use by another app.\n\nTo fix:\n1. Close Camera app (swipe it away)\n2. Close other apps using camera (Zoom, WhatsApp, etc.)\n3. Wait 5 seconds\n4. Try again\n5. If still failing, restart phone';
+                } else if (err.name === 'OverconstrainedError') {
+                    errorMsg = '❌ Your camera doesn\'t support the requested quality.\n\nTrying lower resolution...\n\nPlease reload the page and try again.';
+                } else if (err.name === 'SecurityError') {
+                    errorMsg = '❌ Security error: Camera access blocked.\n\nYou must use HTTPS (secure connection).\n\nMake sure you\'re accessing from: https://YOUR_USERNAME.github.io/attendance-app';
+                } else if (err.name === 'TypeError') {
+                    errorMsg = '❌ Browser doesn\'t support camera access.\n\nPlease use:\n• Chrome or Firefox on Android\n• Safari on iPhone\n\nAvoid in-app browsers (Facebook, Instagram, etc.)';
                 } else {
-                    showError('❌ Camera error: ' + err.message);
+                    errorMsg = '❌ Camera error: ' + err.name + '\n' + err.message + '\n\nTry:\n1. Close other camera apps\n2. Restart phone\n3. Use Chrome browser\n4. Reload page (Ctrl+R or pull down)';
                 }
+                
+                showError(errorMsg);
             }
         });
 
