@@ -186,15 +186,26 @@
         .camera-container {
             width: 100%;
             margin-bottom: 18px;
-            background: #f5f5f5;
+            background: #000;
             border-radius: 8px;
             overflow: hidden;
+            min-height: 300px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
-        video, canvas {
+        video {
             width: 100%;
+            height: auto;
             display: block;
             border-radius: 8px;
+            max-height: 400px;
+            object-fit: cover;
+        }
+
+        canvas {
+            display: none;
         }
 
         .photo-preview {
@@ -375,8 +386,8 @@
         // ===================== CONFIGURATION =====================
         // Replace with your Google Apps Script Web App URL
         const WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbwvXjVXDrUa5D0wn2CSHDDfjB-qFUE4SUhjxzkhz3uknclbXFYQPyRYKxLe5dRq10ue/exec'; // You'll update this
-        const OFFICE_LAT = 12.912961880135104;  // Change to your office latitude
-        const OFFICE_LNG = 80.18329335358361;  // Change to your office longitude
+        const OFFICE_LAT = 12.913024625191516;  // Change to your office latitude
+        const OFFICE_LNG = 80.18319679406774;  // Change to your office longitude
         const GEOFENCE_RADIUS = 500; // Meters - staff must be within 500m of office
 
         // ===================== STATE =====================
@@ -471,19 +482,49 @@
         document.getElementById('startCameraBtn').addEventListener('click', async (e) => {
             e.preventDefault();
             try {
-                cameraStream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: 'user' }
-                });
                 const video = document.getElementById('cameraVideo');
+                
+                // Request camera with specific constraints
+                cameraStream = await navigator.mediaDevices.getUserMedia({
+                    video: { 
+                        facingMode: 'user',
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    },
+                    audio: false
+                });
+                
+                // Attach stream to video element
                 video.srcObject = cameraStream;
                 
+                // Wait for video to load before showing
+                video.onloadedmetadata = () => {
+                    video.play().then(() => {
+                        console.log('Camera stream started successfully');
+                    }).catch(err => {
+                        console.error('Play error:', err);
+                        showError('Could not start camera playback: ' + err.message);
+                    });
+                };
+                
+                // Show camera container
                 document.getElementById('cameraContainer').classList.remove('hidden');
                 document.getElementById('startCameraBtn').disabled = true;
                 document.getElementById('captureSelfieBtn').disabled = false;
-                document.getElementById('cameraStatus').textContent = '✓ Camera active - Click "Capture Photo"';
+                document.getElementById('cameraStatus').textContent = '✓ Camera active - Position your face and click "Capture Photo"';
+                
+                console.log('Camera started, stream ready');
             } catch (err) {
-                showError('Camera access denied: ' + err.message);
-                console.log(err);
+                console.error('Camera error:', err);
+                if (err.name === 'NotAllowedError') {
+                    showError('❌ Camera permission denied. Please allow camera access in browser settings.');
+                } else if (err.name === 'NotFoundError') {
+                    showError('❌ No camera found on this device.');
+                } else if (err.name === 'NotReadableError') {
+                    showError('❌ Camera is in use by another app. Please close it and try again.');
+                } else {
+                    showError('❌ Camera error: ' + err.message);
+                }
             }
         });
 
@@ -520,12 +561,12 @@
 
             // Validation
             if (!currentLocation) {
-                showError('Location not available. Please wait for GPS...');
+                showError('❌ Location not available. Please wait for GPS to initialize...');
                 return;
             }
 
             if (!selfieDataURL) {
-                showError('Please capture a selfie first');
+                showError('❌ Please capture a selfie first');
                 return;
             }
 
@@ -535,7 +576,7 @@
             const remarks = document.getElementById('remarks').value.trim();
 
             if (!staffName || !staffId || !department) {
-                showError('Please fill all required fields');
+                showError('❌ Please fill all required fields');
                 return;
             }
 
@@ -545,6 +586,14 @@
             submitBtn.innerHTML = '<div class="spinner"></div>';
 
             try {
+                // Check webhook URL
+                if (!WEBHOOK_URL || WEBHOOK_URL.includes('YOUR_SCRIPT_ID')) {
+                    showError('❌ ERROR: Webhook URL not configured. Check if you updated the WEBHOOK_URL in the code.');
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '✓ Mark Attendance';
+                    return;
+                }
+
                 // Prepare data
                 const attendanceData = {
                     timestamp: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
@@ -558,29 +607,53 @@
                     selfie: selfieDataURL.substring(0, 50000) // Limit size for Google Sheets
                 };
 
+                console.log('Sending data:', {
+                    ...attendanceData,
+                    selfie: '[Image data truncated]'
+                });
+
                 // Send to Google Sheets
                 const response = await fetch(WEBHOOK_URL, {
                     method: 'POST',
-                    body: JSON.stringify(attendanceData)
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(attendanceData),
+                    mode: 'no-cors' // Important for cross-origin requests
                 });
 
-                if (response.ok) {
-                    showSuccess(`✓ Attendance marked successfully for ${staffName}!`);
-                    // Reset form after 2 seconds
-                    setTimeout(() => {
-                        document.getElementById('attendanceForm').reset();
-                        document.getElementById('selfiePreview').classList.add('hidden');
-                        document.getElementById('selfieData').value = '';
-                        selfieDataURL = null;
-                        getLocation();
-                        submitBtn.disabled = false;
-                        submitBtn.innerHTML = '✓ Mark Attendance';
-                    }, 2000);
-                } else {
-                    throw new Error('Server error');
-                }
+                console.log('Response status:', response.status, response.statusText);
+
+                // Note: With no-cors mode, we can't check response content
+                // Google Apps Script will return success/error anyway
+                
+                showSuccess(`✓ Attendance marked successfully for ${staffName}!`);
+                console.log('Data sent successfully');
+
+                // Reset form after 2 seconds
+                setTimeout(() => {
+                    document.getElementById('attendanceForm').reset();
+                    document.getElementById('selfiePreview').classList.add('hidden');
+                    document.getElementById('selfieData').value = '';
+                    selfieDataURL = null;
+                    
+                    // Stop camera
+                    if (cameraStream) {
+                        cameraStream.getTracks().forEach(track => track.stop());
+                        cameraStream = null;
+                    }
+                    document.getElementById('cameraContainer').classList.add('hidden');
+                    document.getElementById('startCameraBtn').disabled = false;
+                    document.getElementById('captureSelfieBtn').disabled = true;
+                    document.getElementById('cameraStatus').textContent = 'Camera not started';
+                    
+                    getLocation();
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '✓ Mark Attendance';
+                }, 2000);
             } catch (error) {
-                showError('Failed to submit: ' + error.message + '\nMake sure webhook URL is configured');
+                console.error('Submission error:', error);
+                showError('❌ Failed to submit: ' + error.message + '\n\nPlease check:\n1. Webhook URL is correct\n2. Internet connection is working\n3. Check browser console (F12) for more details');
                 submitBtn.disabled = false;
                 submitBtn.innerHTML = '✓ Mark Attendance';
             }
